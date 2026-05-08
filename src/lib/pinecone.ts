@@ -1,13 +1,13 @@
-// Pinecone integrated-embedding index. The index itself owns the embed model
-// (llama-text-embed-v2), so we send raw text — no separate OpenAI/HF call.
+// Pinecone client + helpers.
 //
-// Index field map assumed: text content lives in `chunk_text` (Pinecone default
-// for integrated indexes). If your index uses a different field name, change it
-// in upsertEntry() and querySimilar() below.
+// We use Pinecone Inference API to embed text via llama-text-embed-v2 (1024d),
+// then upsert/query vectors against the existing `trajectory` index.
 
 import { Pinecone } from '@pinecone-database/pinecone';
 
 let _client: Pinecone | null = null;
+
+const EMBED_MODEL = 'llama-text-embed-v2';
 
 export function getPinecone(): Pinecone | null {
   if (_client) return _client;
@@ -24,6 +24,17 @@ export function getIndex() {
   return client.index(name);
 }
 
+async function embedTexts(
+  texts: string[],
+  inputType: 'passage' | 'query',
+): Promise<number[][]> {
+  const client = getPinecone();
+  if (!client) return [];
+  const res = await client.inference.embed(EMBED_MODEL, texts, { inputType });
+  const data = (res as any)?.data ?? [];
+  return data.map((d: any) => d.values as number[]);
+}
+
 export async function upsertEntry(opts: {
   userId: string;
   entryId: string;
@@ -32,12 +43,14 @@ export async function upsertEntry(opts: {
 }) {
   const idx = getIndex();
   if (!idx) return;
-  await idx.namespace(opts.userId).upsertRecords([
+  const [vector] = await embedTexts([opts.text], 'passage');
+  if (!vector) return;
+  await idx.namespace(opts.userId).upsert([
     {
-      _id: opts.entryId,
-      chunk_text: opts.text,
-      ...(opts.metadata ?? {}),
-    } as any,
+      id: opts.entryId,
+      values: vector,
+      metadata: { chunk_text: opts.text, ...(opts.metadata ?? {}) },
+    },
   ]);
 }
 
@@ -55,14 +68,17 @@ export async function querySimilar(opts: {
 }): Promise<SimilarHit[]> {
   const idx = getIndex();
   if (!idx) return [];
-  const res = await idx.namespace(opts.userId).searchRecords({
-    query: { topK: opts.topK ?? 8, inputs: { text: opts.query } },
-  } as any);
-  const hits = (res as any)?.result?.hits ?? [];
-  return hits.map((h: any) => ({
-    id: h._id ?? h.id,
-    score: h._score ?? h.score ?? 0,
-    text: h.fields?.chunk_text ?? h.metadata?.chunk_text,
-    metadata: h.fields ?? h.metadata,
+  const [vector] = await embedTexts([opts.query], 'query');
+  if (!vector) return [];
+  const res = await idx.namespace(opts.userId).query({
+    vector,
+    topK: opts.topK ?? 8,
+    includeMetadata: true,
+  });
+  return (res.matches ?? []).map((m) => ({
+    id: m.id,
+    score: m.score ?? 0,
+    text: (m.metadata as any)?.chunk_text,
+    metadata: m.metadata as any,
   }));
 }
