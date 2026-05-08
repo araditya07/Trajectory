@@ -110,24 +110,25 @@ export default function Page() {
   };
 
   if (!mounted) {
-    return <div style={{ minHeight: '100vh', background: colors.bg }} />;
+    return <div style={{ height: '100dvh', background: colors.bg }} />;
   }
 
   return (
     <main
       style={{
-        minHeight: '100vh',
+        height: '100dvh',
         background: colors.bg,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'stretch',
+        overflow: 'hidden',
       }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: 420,
-          minHeight: '100vh',
+          height: '100dvh',
           display: 'flex',
           flexDirection: 'column',
           background: colors.bg,
