@@ -7,14 +7,15 @@ import { InputBar } from '@/components/chat/InputBar';
 import { colors, fonts } from '@/styles/tokens';
 import { useChatStore } from '@/stores/chat-store';
 import { useDataStore } from '@/stores/data-store';
+import { useAppStore } from '@/stores/app-store';
 import { todayKey } from '@/lib/utils';
 
-async function streamFromApi(message: string, onChunk: (text: string) => void) {
+async function streamFromApi(payload: object, onChunk: (text: string) => void) {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok || !res.body) {
       onChunk(`Sorry — I couldn't reach the AI service. (${res.status})`);
@@ -32,6 +33,18 @@ async function streamFromApi(message: string, onChunk: (text: string) => void) {
   }
 }
 
+async function embedEntry(payload: { userId: string; entryId: string; content: string; metadata?: Record<string, any> }) {
+  try {
+    await fetch('/api/embed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Silent — embedding is best-effort
+  }
+}
+
 export function JournalTab() {
   const messages = useChatStore((s) => s.messages);
   const isTyping = useChatStore((s) => s.isTyping);
@@ -43,7 +56,9 @@ export function JournalTab() {
   const habits = useDataStore((s) => s.habits);
   const habitLogs = useDataStore((s) => s.habitLogs);
   const goals = useDataStore((s) => s.goals);
+  const entries = useDataStore((s) => s.entries);
   const addEntry = useDataStore((s) => s.addEntry);
+  const profile = useAppStore((s) => s.profile);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -66,27 +81,46 @@ export function JournalTab() {
     addMessage('user', text);
 
     // Save substantive entries
+    let savedEntryId: string | null = null;
     if (text.length > 12) {
       const today = todayKey();
       const snap: Record<string, boolean> = {};
       const dayLogs = habitLogs[today] || {};
       habits.forEach((h) => (snap[h.id] = !!dayLogs[h.id]));
-      addEntry({
+      const e = addEntry({
         content: text,
         mood_score: null,
         mood_label: null,
         habits_snapshot: snap,
         embedding_id: null,
       });
+      savedEntryId = e.id;
     }
 
+    // Build context payload for the API. RAG retrieval happens server-side.
+    const userId = profile?.id ?? 'local';
+    const payload = {
+      message: text,
+      userId,
+      goals,
+      recentEntries: entries.slice(-10),
+      habitSummary: { today: {}, week: {}, consistency_pct: 0 },
+      moodTrend: entries.slice(-7).map((e) => e.mood_score ?? 0),
+      streak: 0,
+      dayNumber: entries.length || 1,
+      userPurpose: profile?.purpose_freetext ?? '',
+      history: useChatStore.getState().messages.slice(-20).map((m) => ({
+        role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+        content: m.content,
+      })),
+    };
+
     setTyping(true);
-    // Placeholder assistant message we'll stream into
-    const placeholder = addMessage('assistant', '');
+    addMessage('assistant', '');
     setStreaming(true);
     let started = false;
 
-    await streamFromApi(text, (chunk) => {
+    await streamFromApi(payload, (chunk) => {
       if (!started) {
         setTyping(false);
         started = true;
@@ -97,11 +131,14 @@ export function JournalTab() {
     setStreaming(false);
     setTyping(false);
 
-    // Fallback if nothing streamed
-    if (!placeholder.content && !started) {
-      appendToLast(
-        "I'm running in offline mode right now. Add an ANTHROPIC_API_KEY to enable real-time AI responses.",
-      );
+    // After the response, embed the entry asynchronously
+    if (savedEntryId && text.length > 12) {
+      void embedEntry({
+        userId,
+        entryId: savedEntryId,
+        content: text,
+        metadata: { entry_date: todayKey(), day_number: entries.length + 1 },
+      });
     }
   };
 

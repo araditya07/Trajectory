@@ -1,4 +1,3 @@
-import { embed } from './embeddings';
 import { querySimilar } from '@/lib/pinecone';
 import type { RAGContext, JournalEntry, Goal } from '@/types';
 
@@ -13,14 +12,31 @@ export async function buildContext(opts: {
   dayNumber: number;
   userPurpose: string;
 }): Promise<RAGContext> {
-  const vector = await embed(opts.message);
   let similar: JournalEntry[] = [];
-  if (vector) {
-    const matches = await querySimilar({ userId: opts.userId, vector, topK: 8 });
-    similar = matches
-      .map((m) => m.metadata as any)
-      .filter(Boolean) as unknown as JournalEntry[];
+  if (process.env.PINECONE_API_KEY) {
+    try {
+      const hits = await querySimilar({ userId: opts.userId, query: opts.message, topK: 8 });
+      similar = hits
+        .map((h) => {
+          const meta = h.metadata ?? {};
+          return {
+            id: h.id,
+            user_id: opts.userId,
+            content: (h.text ?? meta.chunk_text ?? '') as string,
+            mood_score: (meta.mood_score as number) ?? null,
+            mood_label: (meta.mood_label as string) ?? null,
+            habits_snapshot: null,
+            embedding_id: h.id,
+            entry_date: (meta.entry_date as string) ?? '',
+            day_number: (meta.day_number as number) ?? 0,
+          } as JournalEntry;
+        })
+        .filter((e) => e.content);
+    } catch {
+      // Fall through to recent entries
+    }
   }
+
   return {
     similar_entries: similar.length ? similar : opts.recentEntries.slice(-5),
     goals: opts.goals,
