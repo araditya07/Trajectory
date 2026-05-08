@@ -11,6 +11,8 @@ interface ChatState {
   isTyping: boolean;
   addMessage: (role: MessageRole, content: string, content_type?: ContentType, metadata?: Record<string, any>) => ChatMessage;
   appendToLast: (chunk: string) => void;
+  setMessageContent: (id: string, content: string) => void;
+  updateMessageMetadata: (id: string, patch: Record<string, any>) => void;
   setTyping: (v: boolean) => void;
   setStreaming: (v: boolean) => void;
   reset: () => void;
@@ -43,6 +45,16 @@ export const useChatStore = create<ChatState>()(
           next[next.length - 1] = { ...last, content: last.content + chunk };
           return { messages: next };
         }),
+      setMessageContent: (id, content) =>
+        set((s) => ({
+          messages: s.messages.map((m) => (m.id === id ? { ...m, content } : m)),
+        })),
+      updateMessageMetadata: (id, patch) =>
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === id ? { ...m, metadata: { ...m.metadata, ...patch } } : m,
+          ),
+        })),
       setTyping: (isTyping) => set({ isTyping }),
       setStreaming: (isStreaming) => set({ isStreaming }),
       reset: () => set({ messages: [], isStreaming: false, isTyping: false }),

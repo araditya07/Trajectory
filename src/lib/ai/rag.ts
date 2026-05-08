@@ -1,17 +1,20 @@
 import { querySimilar } from '@/lib/pinecone';
-import type { RAGContext, JournalEntry, Goal } from '@/types';
+import type { RAGContext, JournalEntry, Goal, Habit } from '@/types';
 
-export async function buildContext(opts: {
+export interface BuildContextInput {
   userId: string;
   message: string;
   goals: Goal[];
+  habits?: Habit[];
   recentEntries: JournalEntry[];
   habitSummary: RAGContext['habit_summary'];
   moodTrend: number[];
   streak: number;
   dayNumber: number;
   userPurpose: string;
-}): Promise<RAGContext> {
+}
+
+export async function buildContext(opts: BuildContextInput): Promise<RAGContext & { habits: Habit[] }> {
   let similar: JournalEntry[] = [];
   if (process.env.PINECONE_API_KEY) {
     try {
@@ -40,6 +43,7 @@ export async function buildContext(opts: {
   return {
     similar_entries: similar.length ? similar : opts.recentEntries.slice(-5),
     goals: opts.goals,
+    habits: opts.habits ?? [],
     habit_summary: opts.habitSummary,
     mood_trend: opts.moodTrend,
     streak: opts.streak,
@@ -48,12 +52,15 @@ export async function buildContext(opts: {
   };
 }
 
-export function contextToXml(ctx: RAGContext): string {
+export function contextToXml(ctx: RAGContext & { habits?: Habit[] }): string {
   const goals = ctx.goals
     .map(
       (g) =>
-        `  <goal id="${g.id}" cycle="${g.cycle}" progress="${Math.round(g.progress_pct)}%">${g.title}</goal>`,
+        `  <goal id="${g.id}" cycle="${g.cycle}" category="${g.category}" progress="${Math.round(g.progress_pct)}%">${g.title}</goal>`,
     )
+    .join('\n');
+  const habits = (ctx.habits ?? [])
+    .map((h) => `  <habit id="${h.id}" icon="${h.icon}">${h.name}</habit>`)
     .join('\n');
   const entries = ctx.similar_entries
     .slice(0, 5)
@@ -64,11 +71,14 @@ export function contextToXml(ctx: RAGContext): string {
     .join('\n');
   return `<context>
 <user purpose="${ctx.user_purpose}" day="${ctx.day_number}" streak="${ctx.streak}" />
-<habits consistency="${ctx.habit_summary.consistency_pct}%" />
+<habit_summary consistency="${ctx.habit_summary.consistency_pct}%" />
 <mood_trend>${ctx.mood_trend.join(',')}</mood_trend>
 <goals>
 ${goals || '  <none />'}
 </goals>
+<habits>
+${habits || '  <none />'}
+</habits>
 <recent_entries>
 ${entries || '  <none />'}
 </recent_entries>

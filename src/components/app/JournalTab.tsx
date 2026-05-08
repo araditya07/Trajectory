@@ -9,6 +9,7 @@ import { useChatStore } from '@/stores/chat-store';
 import { useDataStore } from '@/stores/data-store';
 import { useAppStore } from '@/stores/app-store';
 import { todayKey } from '@/lib/utils';
+import { extractActions, applyActions } from '@/lib/ai/actions';
 
 async function streamFromApi(payload: object, onChunk: (text: string) => void) {
   try {
@@ -58,6 +59,8 @@ export function JournalTab() {
   const goals = useDataStore((s) => s.goals);
   const entries = useDataStore((s) => s.entries);
   const addEntry = useDataStore((s) => s.addEntry);
+  const updateMessageMetadata = useChatStore((s) => s.updateMessageMetadata);
+  const setMessageContent = useChatStore((s) => s.setMessageContent);
   const profile = useAppStore((s) => s.profile);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -103,6 +106,7 @@ export function JournalTab() {
       message: text,
       userId,
       goals,
+      habits,
       recentEntries: entries.slice(-10),
       habitSummary: { today: {}, week: {}, consistency_pct: 0 },
       moodTrend: entries.slice(-7).map((e) => e.mood_score ?? 0),
@@ -116,7 +120,7 @@ export function JournalTab() {
     };
 
     setTyping(true);
-    addMessage('assistant', '');
+    const placeholder = addMessage('assistant', '');
     setStreaming(true);
     let started = false;
 
@@ -130,6 +134,18 @@ export function JournalTab() {
 
     setStreaming(false);
     setTyping(false);
+
+    // Parse out any action JSON blocks from the assistant's reply,
+    // apply them to the data store, and rewrite the message.
+    const finalMessage = useChatStore.getState().messages.find((m) => m.id === placeholder.id);
+    if (finalMessage) {
+      const { cleanedText, actions } = extractActions(finalMessage.content);
+      if (actions.length > 0) {
+        const summaries = applyActions(actions);
+        setMessageContent(placeholder.id, cleanedText || finalMessage.content);
+        updateMessageMetadata(placeholder.id, { actions: summaries });
+      }
+    }
 
     // After the response, embed the entry asynchronously
     if (savedEntryId && text.length > 12) {

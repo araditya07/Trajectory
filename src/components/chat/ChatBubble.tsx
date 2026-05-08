@@ -8,6 +8,7 @@ import type { ChatMessage } from '@/types';
 export function TextBubble({ msg }: { msg: ChatMessage }) {
   const role = msg.role;
   const isUser = role === 'user';
+  const actions: string[] = Array.isArray(msg.metadata?.actions) ? msg.metadata.actions : [];
   return (
     <div
       style={{
@@ -42,6 +43,33 @@ export function TextBubble({ msg }: { msg: ChatMessage }) {
         >
           {msg.content}
         </div>
+        {actions.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+            {actions.map((a, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  background: colors.greenDim,
+                  border: `1px solid ${colors.greenBorder}`,
+                  color: colors.green,
+                  fontFamily: fonts.mono,
+                  fontSize: 10,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                }}
+              >
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
+                {a}
+              </span>
+            ))}
+          </div>
+        )}
         <span style={{ fontFamily: fonts.body, fontSize: 10, color: colors.textDim }}>
           {formatTime(msg.created_at)}
         </span>

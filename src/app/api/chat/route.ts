@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { streamChat } from '@/lib/ai/claude';
 import { DAILY_CHAT_SYSTEM } from '@/lib/ai/prompts';
 import { buildContext, contextToXml } from '@/lib/ai/rag';
-import type { Goal, JournalEntry, RAGContext } from '@/types';
+import type { Goal, Habit, JournalEntry, RAGContext } from '@/types';
 
 export const runtime = 'nodejs';
 
@@ -10,6 +10,7 @@ interface ChatBody {
   message: string;
   userId?: string;
   goals?: Goal[];
+  habits?: Habit[];
   recentEntries?: JournalEntry[];
   habitSummary?: RAGContext['habit_summary'];
   moodTrend?: number[];
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
         userId: body.userId,
         message: body.message,
         goals: body.goals ?? [],
+        habits: body.habits ?? [],
         recentEntries: body.recentEntries ?? [],
         habitSummary: body.habitSummary ?? { today: {}, week: {}, consistency_pct: 0 },
         moodTrend: body.moodTrend ?? [],
