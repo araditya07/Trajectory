@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary:    #0C0B10;
+  --bg-card:       #161520;
+  --bg-card-alt:   #1C1B28;
+  --bg-surface:    #211F30;
+  --border-default: rgba(255,255,255,0.06);
+  --border-focus:   rgba(255,255,255,0.12);
+  --accent:        #C9A84C;
+  --accent-dim:    rgba(201,168,76,0.10);
+  --accent-border: rgba(201,168,76,0.25);
+  --green:         #4CAF6E;
+  --green-dim:     rgba(76,175,110,0.10);
+  --green-border:  rgba(76,175,110,0.20);
+  --red:           #CF5C5C;
+  --red-dim:       rgba(207,92,92,0.08);
+  --red-border:    rgba(207,92,92,0.20);
+  --blue:          #5B8FD4;
+  --blue-dim:      rgba(91,143,212,0.10);
+  --blue-border:   rgba(91,143,212,0.20);
+  --purple:        #9575CD;
+  --purple-dim:    rgba(149,117,205,0.10);
+  --purple-border: rgba(149,117,205,0.20);
+  --text-primary:  #E8E5DD;
+  --text-mid:      rgba(232,229,221,0.55);
+  --text-dim:      rgba(232,229,221,0.25);
+  --font-display: 'Libre Baskerville', Georgia, serif;
+  --font-body:    'Outfit', system-ui, -apple-system, sans-serif;
+  --font-mono:    'Azeret Mono', ui-monospace, monospace;
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-progress: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button { font: inherit; color: inherit; }
+
+input, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+input:focus, textarea:focus, button:focus { outline: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+/* Animations */
+@keyframes haloPulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.05); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes typingPulse {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+  40%           { opacity: 1;    transform: scale(1); }
+}
+
+.fade-up   { animation: fadeUp 0.4s var(--ease-out-soft) both; }
+.fade-in   { animation: fadeIn 0.3s ease both; }

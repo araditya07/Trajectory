@@ -1,0 +1,10 @@
+{
+  "name": "Trajectory",
+  "short_name": "Trajectory",
+  "description": "Your AI journal companion",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C0B10",
+  "theme_color": "#0C0B10",
+  "icons": []
+}
