@@ -3,7 +3,7 @@
 import { Icon, SectionLabel, ProgressBar } from '@/components/ui';
 import { colors, fonts } from '@/styles/tokens';
 import { useDataStore } from '@/stores/data-store';
-import { todayKey } from '@/lib/utils';
+import { todayKey, dateKey } from '@/lib/utils';
 import type { IconName } from '@/types';
 
 function HabitRow({
@@ -86,11 +86,11 @@ export function HabitsTab() {
   const completedCount = habits.filter((h) => todayLogs[h.id]).length;
   const pct = habits.length ? Math.round((completedCount / habits.length) * 100) : 0;
 
-  // 7-day overview
+  // 7-day overview (local dates — see dateKey)
   const days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().slice(0, 10);
+    return dateKey(d);
   });
 
   return (
